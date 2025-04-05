@@ -4,6 +4,7 @@ import (
 	"errors"
 	"github.com/spf13/viper"
 	"pilulia_bot/logger/consts"
+	"strings"
 )
 
 type Config struct {
@@ -41,4 +42,29 @@ func ConfigInit() (*Config, error) {
 		},
 	}
 	return config, nil
+}
+
+func EscapeMarkdown(text string) string {
+	// Экранируем символы, которые могут вызвать ошибки в Markdown
+	replacer := strings.NewReplacer(
+		"_", "\\_",
+		"*", "\\*",
+		"[", "\\[",
+		"]", "\\]",
+		"(", "\\(",
+		")", "\\)",
+		"~", "\\~",
+		"`", "\\`",
+		">", "\\>",
+		"#", "\\#",
+		"+", "\\+",
+		"-", "\\-",
+		"=", "\\=",
+		"|", "\\|",
+		"{", "\\{",
+		"}", "\\}",
+		".", "\\.",
+		"!", "\\!",
+	)
+	return replacer.Replace(text)
 }

@@ -1,7 +1,9 @@
 package consts
 
 const (
-	Default          = "Default"
+	NewUser = "NewUser"
+	Default = "Default"
+	//Добавление препарата
 	AddDrugName      = "AddDrugName"
 	AddMorningDose   = "AddMorningDose"
 	AddAfternoonDose = "AddAfternoonDose"

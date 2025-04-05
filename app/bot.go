@@ -30,12 +30,12 @@ func NewBot(cfg *config.Config, lgr *logger.Logger) (*Bot, error) {
 		return nil, errors.New(consts.ErrorBot)
 	}
 	middleware := middleware.NewMiddleware(lgr)
-	user := make(map[int64]users.User)
+	userMap := make(map[int64]users.User)
 
 	return &Bot{
 		Self:       bot,
 		Middleware: middleware,
-		User:       user,
+		User:       userMap,
 		Cfg:        cfg,
 		Lgr:        lgr,
 	}, nil

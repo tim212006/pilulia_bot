@@ -6,6 +6,9 @@ type User struct {
 	LastName  string
 	Username  string
 	Status    Status
+	//Возможно оптимально было бы хранить данные о препаратах пользователя в мапе, но тогда надо пердусмотреть её
+	//обнуление, что бы исключить нагрузку на память
+	//Drugs map[int64]drugs.Drugs
 }
 
 type Status string
