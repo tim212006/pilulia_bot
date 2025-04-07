@@ -2,6 +2,7 @@ package app
 
 import (
 	"errors"
+	"fmt"
 	"gopkg.in/telebot.v3"
 	"pilulia_bot/config"
 	"pilulia_bot/logger"
@@ -44,6 +45,7 @@ func NewApp() (*App, error) {
 }
 
 func (app *App) Start() {
+
 	app.Logger.Info.Println(consts.InfoAppStart)
 	//app.Bot.Self.Handle(&telebot.InlineButton{Unique: "write_down_drugs"}, app.Handler.HandleWriteDownDrug)
 	//app.Bot.Self.Handle("/btn", app.Handler.HandleWriteDownDrug)
@@ -65,15 +67,91 @@ func (app *App) Start() {
 	app.Bot.Self.Handle(&telebot.InlineButton{Unique: "showUserDrugs"}, app.Handler.handleShowUserDrugs)
 	app.Bot.Self.Handle(&telebot.InlineButton{Unique: "getHelp"}, app.Handler.handleGetHelp)
 	//
+
 	app.Bot.Self.Handle(telebot.OnCallback, func(c telebot.Context) error {
+		callbackData := c.Callback().Data
+		fmt.Println(callbackData)
+		if len(callbackData) < 6 {
+			return fmt.Errorf("Некорректные данные callback: %s", callbackData)
+		}
+		switch callbackData[1:6] {
+		case "edit_":
+			return app.Handler.HandleDrugEdit(c)
+		case "drug_":
+			return app.Handler.HandleDrugInfo(c)
+		case "add_d":
+			return app.Handler.handleAddDrug(c)
+		case "delet":
+			return app.Handler.HandleDrugDelete(c)
+		case "confi":
+			return app.Handler.AcceptedDeleteDrug(c)
+		case "c_del":
+			return app.Handler.CancelDeleteDrug(c)
+		default:
+			return fmt.Errorf("Неизвестный тип callback: %s", callbackData)
+		}
+		/*fmt.Println(c.Callback().Data)
+
+		if c.Callback().Data[1:6] == "edit_" {
+			return app.Handler.HandleDrugEdit(c)
+		}
 		if c.Callback().Data[1:6] == "drug_" {
 			return app.Handler.HandleDrugInfo(c)
 		}
-		return nil
+		return nil*/
 	})
+
+	app.Bot.Self.Handle(telebot.OnText, func(c telebot.Context) error {
+		switch c.Text() {
+		case "На главную":
+			return app.Handler.HandleStart(c)
+		case "Препараты":
+			return app.Handler.handleShowUserDrugs(c)
+		case "Помощь":
+			return app.Handler.handleHelp(c)
+		default:
+			return app.Handler.SwitchStatus(c)
+		}
+	})
+	//Здесь должна быть логика обработки ввода данных препарата
+	/*userStatus, err := app.DB.GetUserStatus(c.Sender().ID)
+		fmt.Println(userStatus)
+		if err != nil {
+			return err
+		}
+		switch userStatus {
+		//Нужно добавить мидлварь
+		case consts.AddDrugName:
+			return c.Send("Ввод названия препарата")
+		case consts.AddMorningDose:
+			return c.Send("Ввод количества препарата утром")
+		case consts.AddAfternoonDose:
+			return c.Send("Ввод количества препарата днем")
+		case consts.AddEvningDose:
+			return c.Send("Ввод количества препарата вечером")
+		case consts.AddNightDose:
+			return c.Send("Ввод количества препарата ночью")
+		case consts.AddDrugQuantity:
+			return c.Send("Ввод количества оставшегося препарата")
+		case consts.AddDrugComment:
+			return c.Send("Ввод количества препарата утром")
+		default:
+			return fmt.Errorf("Неизвестный тип состояния: %s", userStatus)
+		}
+
+	}*/
+
 	//
+	/*app.Bot.Self.Handle(telebot.OnCallback, func(c telebot.Context) error {
+
+		return nil
+	})*/
+
+	//
+	//})
 
 	app.Bot.Self.Handle("/start", app.Handler.HandleStart)
 	app.Bot.Self.Handle("/exist", app.Handler.UpdateConnect)
 	app.Bot.Start()
+
 }

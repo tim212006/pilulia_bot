@@ -23,6 +23,11 @@ func (h *Handler) SendDynamicButtonMessage(c telebot.Context, drugs map[string]d
 		}
 		inlineKeyboard.InlineKeyboard = append(inlineKeyboard.InlineKeyboard, []telebot.InlineButton{btn})
 	}
+	btn_add_drug := telebot.InlineButton{
+		Unique: "add_d",
+		Text:   "Добавить препарат",
+	}
+	inlineKeyboard.InlineKeyboard = append(inlineKeyboard.InlineKeyboard, []telebot.InlineButton{btn_add_drug})
 	return c.Send("Ваши препараты", inlineKeyboard)
 }
 
@@ -48,6 +53,17 @@ func (h *Handler) menuCommand(c telebot.Context) error {
 	btnName := "Препараты"
 	btnData := "BtnData"
 	return h.menuButton(c, btnName, btnData)
+}
+
+func (h *Handler) SendMainMenu(c telebot.Context) error {
+	btnMain := telebot.Btn{Text: "На главную"}
+	btnDrugs := telebot.Btn{Text: "Препараты"}
+	btnHelp := telebot.Btn{Text: "Помощь"}
+	markup := &telebot.ReplyMarkup{ResizeKeyboard: true}
+	markup.Reply(markup.Row(btnMain, btnDrugs, btnHelp))
+	return c.Send("Выберите действие:", &telebot.SendOptions{
+		ReplyMarkup: markup,
+	})
 }
 
 // ******************************************
@@ -109,4 +125,14 @@ func (h *Handler) InlineButtonMessege(c telebot.Context, drugName string) error 
 		},
 	}
 	return c.Send("Список препаратов: ", &inlineKeyboard)
+}
+
+func (h *Handler) SendEditDrug(c telebot.Context, drugId int64) telebot.InlineButton {
+	uniqueString := fmt.Sprintf("drug_edit_%d", drugId)
+	textString := fmt.Sprintf("Редактировать")
+	btn := telebot.InlineButton{
+		Unique: uniqueString,
+		Text:   textString,
+	}
+	return btn
 }

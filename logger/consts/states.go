@@ -10,4 +10,5 @@ const (
 	AddEvningDose    = "AddEvningDose"
 	AddNightDose     = "AddNightDose"
 	AddDrugQuantity  = "AddDrugQuantity"
+	AddDrugComment   = "AddDrugComment"
 )

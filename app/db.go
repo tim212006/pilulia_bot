@@ -11,6 +11,7 @@ import (
 	"pilulia_bot/drugs"
 	"pilulia_bot/logger"
 	"pilulia_bot/logger/consts"
+	"pilulia_bot/users"
 	"time"
 )
 
@@ -79,6 +80,16 @@ func (db *MySQLUserDb) UpdateUserStatus(userID int64, newStatus string) error {
 	return nil
 }
 
+func (db *MySQLUserDb) GetUserStatus(userId int64) (users.Status, error) {
+	var userStatus users.Status
+	query := "SELECT userstatus FROM users WHERE userid = ?"
+	err := db.db.Get(&userStatus, query, userId)
+	if err != nil {
+		return userStatus, fmt.Errorf("Ошибка получения статуса пользователя")
+	}
+	return userStatus, nil
+}
+
 // Функции препаратов
 func (db *MySQLUserDb) GetUserDrugs(userID int64) (map[string]drugs.Drugs, error) {
 	query := `
@@ -116,4 +127,29 @@ func (db *MySQLUserDb) GetDrug(drugId int64) (drugs.Drugs, error) {
 		return drugs.Drugs{}, fmt.Errorf("Ошибка получения препарата %d: %w", drugId, err)
 	}
 	return drug, nil
+}
+
+func (db *MySQLUserDb) DeleteDrug(drugId int64) error {
+	query := "DELETE FROM drugs WHERE id = ?"
+	result, err := db.db.Exec(query, drugId)
+	if err != nil {
+		return fmt.Errorf("Ошибка удаления перпарата с ID %d: %s", drugId, err)
+	}
+	rows, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("Ошибка получения количества удаленных строк: %w", err)
+	}
+	if rows == 0 {
+		return fmt.Errorf("Препарат с ID %d не найден", drugId)
+	}
+	return nil
+}
+
+func (db *MySQLUserDb) InsertDrug(userId int64, drug drugs.Drugs) error {
+	query := "INSERT INTO drugs (userid, drug_name, m_dose, a_dose, e_dose, n_dose, quantity, comment) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
+	_, err := db.db.Exec(query, userId, drug.Drug_name, drug.M_dose, drug.A_dose, drug.E_dose, drug.N_dose, drug.Quantity, drug.Comment)
+	if err != nil {
+		return err
+	}
+	return nil
 }
