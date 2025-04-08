@@ -8,6 +8,7 @@ import (
 	"pilulia_bot/logger/consts"
 	"pilulia_bot/logger/middleware"
 	"pilulia_bot/users"
+	"sync"
 	"time"
 )
 
@@ -15,6 +16,7 @@ type Bot struct {
 	Self       *telebot.Bot
 	Middleware *middleware.Middleware
 	User       map[int64]users.User
+	UserMutex  sync.RWMutex
 	Cfg        *config.Config
 	Lgr        *logger.Logger
 }

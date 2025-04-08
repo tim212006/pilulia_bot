@@ -87,6 +87,10 @@ func (app *App) Start() {
 			return app.Handler.AcceptedDeleteDrug(c)
 		case "c_del":
 			return app.Handler.CancelDeleteDrug(c)
+		case "d_sav":
+			return app.Handler.SaveDrug(c)
+		case "d_can":
+			return app.Handler.EraseDrug(c)
 		default:
 			return fmt.Errorf("Неизвестный тип callback: %s", callbackData)
 		}
@@ -113,33 +117,6 @@ func (app *App) Start() {
 			return app.Handler.SwitchStatus(c)
 		}
 	})
-	//Здесь должна быть логика обработки ввода данных препарата
-	/*userStatus, err := app.DB.GetUserStatus(c.Sender().ID)
-		fmt.Println(userStatus)
-		if err != nil {
-			return err
-		}
-		switch userStatus {
-		//Нужно добавить мидлварь
-		case consts.AddDrugName:
-			return c.Send("Ввод названия препарата")
-		case consts.AddMorningDose:
-			return c.Send("Ввод количества препарата утром")
-		case consts.AddAfternoonDose:
-			return c.Send("Ввод количества препарата днем")
-		case consts.AddEvningDose:
-			return c.Send("Ввод количества препарата вечером")
-		case consts.AddNightDose:
-			return c.Send("Ввод количества препарата ночью")
-		case consts.AddDrugQuantity:
-			return c.Send("Ввод количества оставшегося препарата")
-		case consts.AddDrugComment:
-			return c.Send("Ввод количества препарата утром")
-		default:
-			return fmt.Errorf("Неизвестный тип состояния: %s", userStatus)
-		}
-
-	}*/
 
 	//
 	/*app.Bot.Self.Handle(telebot.OnCallback, func(c telebot.Context) error {

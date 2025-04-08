@@ -7,6 +7,6 @@ type Drugs struct {
 	A_dose    int64
 	E_dose    int64
 	N_dose    int64
-	Quantity  int
+	Quantity  int64
 	Comment   string
 }

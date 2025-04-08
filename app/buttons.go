@@ -136,3 +136,7 @@ func (h *Handler) SendEditDrug(c telebot.Context, drugId int64) telebot.InlineBu
 	}
 	return btn
 }
+
+//func (h *Handler) SendConfirmAddDrug(c telebot.Context) error {
+//	drug :=
+//}
