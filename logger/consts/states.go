@@ -11,4 +11,12 @@ const (
 	AddNightDose     = "AddNightDose"
 	AddDrugQuantity  = "AddDrugQuantity"
 	AddDrugComment   = "AddDrugComment"
+	//Редактирование препарата
+	EditDrugName      = "EditDrugName"
+	EditMorningDose   = "EditMornDose"
+	EditAfternoonDose = "EditAfteDose"
+	EditEvningDose    = "EditEvniDose"
+	EditNightDose     = "EditNighDose"
+	EditDrugQuantity  = "EditDrugQuan"
+	EditDrugComment   = "EditDrugComm"
 )

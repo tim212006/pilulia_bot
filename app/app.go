@@ -70,7 +70,7 @@ func (app *App) Start() {
 
 	app.Bot.Self.Handle(telebot.OnCallback, func(c telebot.Context) error {
 		callbackData := c.Callback().Data
-		fmt.Println(callbackData)
+		fmt.Println(callbackData[1:6])
 		if len(callbackData) < 6 {
 			return fmt.Errorf("Некорректные данные callback: %s", callbackData)
 		}
@@ -91,6 +91,12 @@ func (app *App) Start() {
 			return app.Handler.SaveDrug(c)
 		case "d_can":
 			return app.Handler.EraseDrug(c)
+		case "daily":
+			return app.Handler.HandlePressDailyButton(c)
+		case "dredi":
+			return app.Handler.HandleDrugParametrEdit(c)
+		case "cedit":
+			return app.Handler.handleShowUserDrugs(c)
 		default:
 			return fmt.Errorf("Неизвестный тип callback: %s", callbackData)
 		}
@@ -113,6 +119,7 @@ func (app *App) Start() {
 			return app.Handler.handleShowUserDrugs(c)
 		case "Помощь":
 			return app.Handler.handleHelp(c)
+		//case "Помощь": return app.Handler.handleShowDailyUserDrugs(c)
 		default:
 			return app.Handler.SwitchStatus(c)
 		}

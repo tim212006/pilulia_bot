@@ -15,12 +15,12 @@ import (
 )
 
 type Handler struct {
-	Bot Bot
+	Bot *Bot
 	Lgr *logger.Logger
 	DB  *MySQLUserDb
 }
 
-func NewHandler(bot Bot, lgr *logger.Logger, db *MySQLUserDb) *Handler {
+func NewHandler(bot *Bot, lgr *logger.Logger, db *MySQLUserDb) *Handler {
 	return &Handler{Bot: bot, Lgr: lgr, DB: db}
 }
 
@@ -51,8 +51,8 @@ func (h *Handler) HandleText(c telebot.Context) error {
 
 func (h *Handler) UpdateConnect(c telebot.Context) error {
 	h.DB.UpdateLastConnect(c.Sender().ID)
-	string := fmt.Sprintf("Обновление пользователя %d", c.Sender().ID)
-	return c.Send(string)
+	respString := fmt.Sprintf("Обновление пользователя %d", c.Sender().ID)
+	return c.Send(respString)
 }
 
 // Обновление статуса пользователя
@@ -142,13 +142,11 @@ func (h *Handler) HandleStart(c telebot.Context) error {
 	h.Bot.UserMutex.Unlock()
 	_, err := h.DB.GetUserID(user)
 	if err != nil {
-		if err != nil {
-			if err == sql.ErrNoRows {
-				status := consts.NewUser
-				h.DB.InsertUser(user.ID, user.FirstName, user.LastName, user.Username, status)
-				//Приветствие новому пользователю
-				return c.Send("Приветствую, я бот-таблетница! Я могу учитывать, употребляемые вами препараты и напоминать об их приеме. Давайте добавим препараты для приема и учета")
-			}
+		if err == sql.ErrNoRows {
+			status := consts.NewUser
+			h.DB.InsertUser(user.ID, user.FirstName, user.LastName, user.Username, status)
+			//Приветствие новому пользователю
+			return c.Send("Приветствую, я бот-таблетница! Я могу учитывать, употребляемые вами препараты и напоминать об их приеме. Давайте добавим препараты для приема и учета")
 		}
 		h.Lgr.Err.Println(consts.DBErrorGetUser)
 		return err
@@ -158,10 +156,6 @@ func (h *Handler) HandleStart(c telebot.Context) error {
 	//Приветствие старому пользователю
 	helloString := fmt.Sprintf("С возвращением, %s %s!", user.FirstName, user.LastName)
 	c.Send(helloString)
-	//h.menuCommand(c)
-	//return h.menuCommand(c)
-	//return h.SendMenuWithInlineButtons(c)
-
 	fmt.Println(h.Bot.User[user.ID].Username, ": ", h.Bot.User[user.ID].Status)
 	return h.SendMainMenu(c)
 }
@@ -184,19 +178,19 @@ func (h *Handler) handleShowUserDrugs(c telebot.Context) error {
 	}
 	//Отправляем пользователю кнопки с названием препаратов
 	return h.SendDynamicButtonMessage(c, userDrugs)
-	//Элемент кода для отображения препаратов списком
-	/*var message string
-	for name := range userDrugs {
-		//Экранируем специальные символы Markdown
-		escapedName := config.EscapeMarkdown(name)
-		message += fmt.Sprintf("- %s\n", escapedName)
-	}
-	return c.Send(fmt.Sprintf("Ваши препараты: \n%s", message), &telebot.SendOptions{
-		ParseMode: telebot.ModeMarkdown,
-	})*/
 }
 
-//Функция отправки пользователю информации о выбранном препарате
+// Отображение препаратов на день
+func (h *Handler) handleShowDailyUserDrugs(c telebot.Context) error {
+	// Логика для обработки сообщения "Препараты"
+	userDrugs, err := h.DB.GetUserDrugs(c.Sender().ID)
+	if err != nil {
+		return err
+	}
+	//Отправляем пользователю кнопки с названием препаратов
+	return h.SendDailyDrugs(c, userDrugs)
+}
+
 //func (h *Handlers)
 
 // Обработчик текстового сообщения для кнопки "Помощь"
@@ -260,6 +254,60 @@ func (h *Handler) HandleDrugInfo(c telebot.Context) error {
 	})
 }
 
+func (h *Handler) ShowDrugEdit(c telebot.Context, drugId int64) error {
+	drug, err := h.DB.GetDrug(drugId)
+	if err != nil {
+		return err
+	}
+	NameBtn := telebot.InlineButton{
+		Unique: fmt.Sprintf("dredi_name%d", drug.Id),
+		Text:   fmt.Sprintf("Название: %s", drug.Drug_name),
+	}
+	mDoseBtn := telebot.InlineButton{
+		Unique: fmt.Sprintf("dredi_mdos%d", drug.Id),
+		Text:   fmt.Sprintf("Утром: %d", drug.M_dose),
+	}
+	aDoseBtn := telebot.InlineButton{
+		Unique: fmt.Sprintf("dredi_ados%d", drug.Id),
+		Text:   fmt.Sprintf("Днем: %d", drug.A_dose),
+	}
+	eDoseBtn := telebot.InlineButton{
+		Unique: fmt.Sprintf("dredi_edos%d", drug.Id),
+		Text:   fmt.Sprintf("Вечером: %d", drug.E_dose),
+	}
+	nDoseBtn := telebot.InlineButton{
+		Unique: fmt.Sprintf("dredi_ndos%d", drug.Id),
+		Text:   fmt.Sprintf("На ночь: %d", drug.N_dose),
+	}
+	quantityBtn := telebot.InlineButton{
+		Unique: fmt.Sprintf("dredi_quan%d", drug.Id),
+		Text:   fmt.Sprintf("Остаток: %d", drug.Quantity),
+	}
+	commentBtn := telebot.InlineButton{
+		Unique: fmt.Sprintf("dredi_comm%s", drug.Id),
+		Text:   fmt.Sprintf("Комментарий: %s", drug.Comment),
+	}
+	cancelBtn := telebot.InlineButton{
+		Unique: "cedit",
+		Text:   "Назад",
+	}
+
+	inlineKeyboard := &telebot.ReplyMarkup{}
+	inlineKeyboard.InlineKeyboard = [][]telebot.InlineButton{
+		{NameBtn},
+		{mDoseBtn},
+		{aDoseBtn},
+		{eDoseBtn},
+		{nDoseBtn},
+		{quantityBtn},
+		{commentBtn},
+		{cancelBtn},
+	}
+
+	respString := fmt.Sprintf("Выберите редактируемый параметр:")
+	return c.Send(respString, inlineKeyboard)
+}
+
 func (h *Handler) HandleDrugEdit(c telebot.Context) error {
 	drugId := c.Callback().Data[6:]
 	fmt.Println(drugId)
@@ -267,13 +315,75 @@ func (h *Handler) HandleDrugEdit(c telebot.Context) error {
 	if err != nil {
 		return err
 	}
-	fmt.Println(drugIdInt)
+	return h.ShowDrugEdit(c, drugIdInt)
+}
+
+func (h *Handler) HandleDrugParametrEdit(c telebot.Context) error {
+	drugId := c.Callback().Data[11:]
+	drugParam := c.Callback().Data[7:11]
+	drugIdInt, err := strconv.ParseInt(drugId, 10, 64)
+	if err != nil {
+		return err
+	}
 	drug, err := h.DB.GetDrug(drugIdInt)
 	if err != nil {
 		return err
 	}
-	RespString := fmt.Sprintf("Нажата кнопка - Редактировать препарат %s", drug.Drug_name)
-	return c.Send(RespString)
+	switch drugParam {
+	case "name":
+		statusString := fmt.Sprintf("%s:%d", consts.EditDrugName, drug.Id)
+		var userStatus users.Status = users.Status(statusString)
+		h.UpdateUserStatus(c.Sender().ID, userStatus)
+		h.DB.UpdateUserStatus(c.Sender().ID, statusString)
+		message := fmt.Sprintf("Старое название: %s\nВведите новое название: ", drug.Drug_name)
+		return c.Send(message)
+	case "mdos":
+		statusString := fmt.Sprintf("%s:%d", consts.EditMorningDose, drug.Id)
+		var userStatus users.Status = users.Status(statusString)
+		h.UpdateUserStatus(c.Sender().ID, userStatus)
+		h.DB.UpdateUserStatus(c.Sender().ID, statusString)
+		message := fmt.Sprintf("Препарат: %s \nСтарая дозировка утром: %d\nВведите новую дозировку утром: ", drug.Drug_name, drug.M_dose)
+		return c.Send(message)
+	case "ados":
+		statusString := fmt.Sprintf("%s:%d", consts.EditAfternoonDose, drug.Id)
+		var userStatus users.Status = users.Status(statusString)
+		h.UpdateUserStatus(c.Sender().ID, userStatus)
+		h.DB.UpdateUserStatus(c.Sender().ID, statusString)
+		message := fmt.Sprintf("Препарат: %s \nСтарая дозировка днем: %d\nВведите новую дозировку днем: ", drug.Drug_name, drug.A_dose)
+		return c.Send(message)
+	case "edos":
+		statusString := fmt.Sprintf("%s:%d", consts.EditEvningDose, drug.Id)
+		var userStatus users.Status = users.Status(statusString)
+		h.UpdateUserStatus(c.Sender().ID, userStatus)
+		h.DB.UpdateUserStatus(c.Sender().ID, statusString)
+		message := fmt.Sprintf("Препарат: %s \nСтарая дозировка вечером: %d\nВведите новую дозировку вечером: ", drug.Drug_name, drug.E_dose)
+		return c.Send(message)
+	case "ndos":
+		statusString := fmt.Sprintf("%s:%d", consts.EditNightDose, drug.Id)
+		var userStatus users.Status = users.Status(statusString)
+		h.UpdateUserStatus(c.Sender().ID, userStatus)
+		h.DB.UpdateUserStatus(c.Sender().ID, statusString)
+		message := fmt.Sprintf("Препарат: %s \nСтарая дозировка на ночь: %d\nВведите новую дозировку на ночь: ", drug.Drug_name, drug.N_dose)
+		return c.Send(message)
+	case "quan":
+		statusString := fmt.Sprintf("%s:%d", consts.EditDrugQuantity, drug.Id)
+		var userStatus users.Status = users.Status(statusString)
+		h.UpdateUserStatus(c.Sender().ID, userStatus)
+		h.DB.UpdateUserStatus(c.Sender().ID, statusString)
+		message := fmt.Sprintf("Препарат: %s \nПредыдущий остаток: %d\nВведите новый остаток: ", drug.Drug_name, drug.Quantity)
+		return c.Send(message)
+	case "comm":
+		statusString := fmt.Sprintf("%s:%d", consts.EditDrugComment, drug.Id)
+		var userStatus users.Status = users.Status(statusString)
+		h.UpdateUserStatus(c.Sender().ID, userStatus)
+		h.DB.UpdateUserStatus(c.Sender().ID, statusString)
+		message := fmt.Sprintf("Препарат: %s \nСтарый комментарий: %d\nВведите новый комментарий: ", drug.Drug_name, drug.Comment)
+		return c.Send(message)
+	default:
+		fmt.Println("Неизвестный статус пользователя")
+	}
+
+	return nil
 }
 
 func (h *Handler) HandleDrugDelete(c telebot.Context) error {
@@ -341,8 +451,21 @@ func (h *Handler) AcceptedDeleteDrug(c telebot.Context) error {
 }
 
 func (h *Handler) CancelDeleteDrug(c telebot.Context) error {
-	c.Send("Удаление препарата отменено")
-	return h.handleShowUserDrugs(c)
+	/*c.Send("Удаление препарата отменено")
+	return h.handleShowUserDrugs(c)*/
+	errResp := c.Respond(&telebot.CallbackResponse{
+		Text: "Удаление препарата отменено",
+	})
+	h.handleShowUserDrugs(c)
+	return errResp
+}
+
+func (h *Handler) CancelEditDrug(c telebot.Context) error {
+	errResp := c.Respond(&telebot.CallbackResponse{
+		Text: "Редактирование препарата отменено",
+	})
+	h.handleShowUserDrugs(c)
+	return errResp
 }
 
 func (h *Handler) handleAddDrug(c telebot.Context) error {
@@ -358,49 +481,83 @@ func (h *Handler) handleAddDrug(c telebot.Context) error {
 
 func (h *Handler) SwitchStatus(c telebot.Context) error {
 	// Извлечение статуса пользователя
-	//var userStatus users.Status
-	//var err error
-	/*u := h.Bot.User[c.Sender().ID]
-	if u.Status == "" {
-		userStatus, err = h.DB.GetUserStatus(c.Sender().ID)
-		h.Bot.UserMutex.Lock()
-		u.SetStatus(userStatus)
-		h.Bot.UserMutex.Unlock()
-		if err != nil {
-			return c.Send("Ошибка получения статуса пользователя.")
-		}
-	} else {
-		userStatus = u.Status
-	}
-
-	//fmt.Println(userStatus)
-	if err != nil {
-		return c.Send("Ошибка получения статуса пользователя.")
-	}*/
 	userStatus, err := h.GetUserStatus(c.Sender().ID)
 	if err != nil {
 		return err
 	}
-	//fmt.Println(u.Username, ": ", u.Status)
+	drediString := userStatus[:4]
+	if drediString == "Edit" {
+		editParam := userStatus[4:12]
+		drugId := string(userStatus[13:])
+		drugIdInt, err := strconv.ParseInt(drugId, 10, 64)
+		if err != nil {
+			return err
+		}
+		switch editParam {
+		case "DrugName":
+			h.DB.UpdateDrugName(drugIdInt, c.Text())
+			return h.ShowDrugEdit(c, drugIdInt)
+		case "MornDose":
+			period := "m_dose"
+			dataInt, err := ParseInt64FromString(c.Text())
+			if err != nil {
+				return c.Send("Укажите число")
+			}
+			h.DB.UpdateDrugDose(drugIdInt, dataInt, period)
+			return h.ShowDrugEdit(c, drugIdInt)
+		case "AfteDose":
+			period := "a_dose"
+			dataInt, err := ParseInt64FromString(c.Text())
+			if err != nil {
+				return c.Send("Укажите число")
+			}
+			h.DB.UpdateDrugDose(drugIdInt, dataInt, period)
+			return h.ShowDrugEdit(c, drugIdInt)
+		case "EvniDose":
+			period := "e_dose"
+			dataInt, err := ParseInt64FromString(c.Text())
+			if err != nil {
+				return c.Send("Укажите число")
+			}
+			h.DB.UpdateDrugDose(drugIdInt, dataInt, period)
+			return h.ShowDrugEdit(c, drugIdInt)
+		case "NighDose":
+			period := "n_dose"
+			dataInt, err := ParseInt64FromString(c.Text())
+			if err != nil {
+				return c.Send("Укажите число")
+			}
+			h.DB.UpdateDrugDose(drugIdInt, dataInt, period)
+			return h.ShowDrugEdit(c, drugIdInt)
+		case "DrugQuan":
+			dataInt, err := ParseInt64FromString(c.Text())
+			if err != nil {
+				return c.Send("Укажите число")
+			}
+			h.DB.UpdateDrugQuantity(drugIdInt, dataInt)
+			return h.ShowDrugEdit(c, drugIdInt)
+		case "DrugComm":
+			h.DB.UpdateDrugComment(drugIdInt, c.Text())
+			return h.ShowDrugEdit(c, drugIdInt)
+		default:
+			return fmt.Errorf("Неизвестный статус редактирования препарата")
+		}
+		return nil
+	}
 	// Проверка статуса пользователя и отправка соответствующего сообщения
 	switch userStatus {
 	case consts.AddDrugName:
-		//fmt.Println(c.Text())
 		h.SetDrugString(c.Sender().ID, userStatus, c.Text())
-		//fmt.Println("Информация в структуре", u.Drugs.Drug_name)
 		h.UpdateUserStatus(c.Sender().ID, consts.AddMorningDose)
 		h.DB.UpdateUserStatus(c.Sender().ID, consts.AddMorningDose)
-		//fmt.Println(h.Bot.User[c.Sender().ID].Username, ": ", h.Bot.User[c.Sender().ID].Status)
 		fmt.Println("Название: ", h.Bot.User[c.Sender().ID].Drugs.Drug_name)
 		return c.Send(" Введите количество препарата утром:")
 	case consts.AddMorningDose:
-		//fmt.Println(c.Text())
 		dataInt, err := ParseInt64FromString(c.Text())
 		if err != nil {
 			return c.Send("Укажите число")
 		}
 		h.SetDrugInt(c.Sender().ID, userStatus, dataInt)
-		//fmt.Println("Информация в структуре", u.Drugs.M_dose)
 		h.UpdateUserStatus(c.Sender().ID, consts.AddAfternoonDose)
 		h.DB.UpdateUserStatus(c.Sender().ID, consts.AddAfternoonDose)
 		fmt.Println("Название: ", h.Bot.User[c.Sender().ID].Drugs.Drug_name, " У: ", h.Bot.User[c.Sender().ID].Drugs.M_dose)
@@ -439,10 +596,8 @@ func (h *Handler) SwitchStatus(c telebot.Context) error {
 		if err != nil {
 			return c.Send("Укажите число")
 		}
-
 		h.SetDrugInt(c.Sender().ID, userStatus, dataInt)
 		h.UpdateUserStatus(c.Sender().ID, consts.AddDrugComment)
-
 		h.DB.UpdateUserStatus(c.Sender().ID, consts.AddDrugComment)
 		return c.Send("Введите комментарий к препарату")
 	case consts.AddDrugComment:
@@ -541,4 +696,40 @@ func (h *Handler) SaveDrug(c telebot.Context) error {
 	}
 	h.DB.InsertDrug(c.Sender().ID, user.Drugs)
 	return h.handleShowUserDrugs(c)
+}
+
+func (h *Handler) HandlePressDailyButton(c telebot.Context) error {
+	drugId := c.Callback().Data[9:]
+	drugPeriod := c.Callback().Data[7:8]
+	drugIdInt, err := strconv.ParseInt(drugId, 10, 64)
+	if err != nil {
+		return err
+	}
+
+	drug, err := h.DB.GetDrug(drugIdInt)
+	if err != nil {
+		return err
+	}
+	switch drugPeriod {
+	case "m":
+
+		drug.Quantity -= drug.M_dose
+	case "a":
+		drug.Quantity -= drug.A_dose
+	case "e":
+		drug.Quantity -= drug.E_dose
+	case "n":
+		drug.Quantity -= drug.N_dose
+	default:
+		fmt.Println("Неизвестный тип периода: ", drugPeriod)
+	}
+	h.DB.UpdateDrugQuantity(drugIdInt, drug.Quantity)
+	RespText := fmt.Sprintf("%s осталось %d", drug.Drug_name, drug.Quantity)
+	errResp := c.Respond(&telebot.CallbackResponse{
+		Text: RespText,
+	})
+	if errResp != nil {
+		return errResp
+	}
+	return nil
 }

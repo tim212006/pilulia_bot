@@ -116,6 +116,35 @@ func (db *MySQLUserDb) GetUserDrugs(userID int64) (map[string]drugs.Drugs, error
 	return drugsMap, nil
 }
 
+// //ХЗ а надо ли оно, если можно получать данные сразу из мапы
+func (db *MySQLUserDb) GetPeriodDrugs(userID int64, period string) (map[string]drugs.Drugs, error) {
+	if period != "m_dose" || period != "a_dose" || period != "e_dose" || period != "n_dose" {
+		return nil, fmt.Errorf("Период: не соответствует")
+	}
+	query := `
+		SELECT id, drug_name, m_dose, a_dose, e_dose, n_dose, quantity, comment 
+		FROM drugs 
+		WHERE userid = ? AND ? > 0`
+	rows, err := db.db.Queryx(query, userID, period)
+	if err != nil {
+		return nil, fmt.Errorf("Ошибка получения препаратов периода пользователя %d: %w", userID, err)
+	}
+	defer rows.Close()
+	drugsMap := make(map[string]drugs.Drugs)
+	for rows.Next() {
+		var drug drugs.Drugs
+		err = rows.StructScan(&drug)
+		if err != nil {
+			return nil, fmt.Errorf("Ошибка получения строки (период) препарата %d: %w", userID, err)
+		}
+		drugsMap[drug.Drug_name] = drug
+	}
+	if err := rows.Err(); err != nil {
+		return nil, err
+	}
+	return drugsMap, nil
+}
+
 func (db *MySQLUserDb) GetDrug(drugId int64) (drugs.Drugs, error) {
 	var drug drugs.Drugs
 	query := `
@@ -148,6 +177,54 @@ func (db *MySQLUserDb) DeleteDrug(drugId int64) error {
 func (db *MySQLUserDb) InsertDrug(userId int64, drug drugs.Drugs) error {
 	query := "INSERT INTO drugs (userid, drug_name, m_dose, a_dose, e_dose, n_dose, quantity, comment) VALUES (?, ?, ?, ?, ?, ?, ?, ?)"
 	_, err := db.db.Exec(query, userId, drug.Drug_name, drug.M_dose, drug.A_dose, drug.E_dose, drug.N_dose, drug.Quantity, drug.Comment)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (db *MySQLUserDb) UpdateDrugName(drugId int64, drugName string) error {
+	query := "UPDATE drugs SET drug_name = ? WHERE id = ?"
+	_, err := db.db.Queryx(query, drugName, drugId)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (db *MySQLUserDb) UpdateDrugDose(drugId int64, dose int64, period string) error {
+	var query string
+	switch period {
+	case "m_dose":
+		query = "UPDATE drugs SET m_dose = ? WHERE id = ?"
+	case "a_dose":
+		query = "UPDATE drugs SET a_dose = ? WHERE id = ?"
+	case "e_dose":
+		query = "UPDATE drugs SET e_dose = ? WHERE id = ?"
+	case "n_dose":
+		query = "UPDATE drugs SET n_dose = ? WHERE id = ?"
+	default:
+		fmt.Println("Неизвестный период")
+	}
+	_, err := db.db.Exec(query, dose, drugId)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (db *MySQLUserDb) UpdateDrugQuantity(drugId int64, quantity int64) error {
+	query := "UPDATE drugs SET quantity = ? WHERE id = ?"
+	_, err := db.db.Exec(query, quantity, drugId)
+	if err != nil {
+		return err
+	}
+	return nil
+}
+
+func (db *MySQLUserDb) UpdateDrugComment(drugId int64, drugComment string) error {
+	query := "UPDATE drugs SET comment = ? WHERE id = ?"
+	_, err := db.db.Queryx(query, drugComment, drugId)
 	if err != nil {
 		return err
 	}
