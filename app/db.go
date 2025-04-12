@@ -19,6 +19,81 @@ type MySQLUserDb struct {
 	db *sqlx.DB
 }
 
+func СheckDatabaseAndTables(cfg *config.Config, lgr *logger.Logger) error {
+	// Открываем соединение с сервером базы данных
+	dsn := fmt.Sprintf("%s:%s@tcp(%s:%s)/",
+		cfg.DBSettings.Username,
+		cfg.DBSettings.Password,
+		cfg.DBSettings.Host,
+		cfg.DBSettings.Port)
+	db, err := sqlx.Open("mysql", dsn)
+	if err != nil {
+		return fmt.Errorf("ошибка подключения к базе данных: %w", err)
+	}
+	defer db.Close()
+	// Создаем базу данных drugs_db
+	_, err = db.Exec("CREATE DATABASE IF NOT EXISTS drugs_db")
+	if err != nil {
+		return fmt.Errorf("ошибка создания базы данных drugs_db: %w", err)
+	}
+
+	// Проверяем наличие базы данных drug_db
+	_, err = db.Exec("USE drugs_db")
+	if err != nil {
+		return fmt.Errorf("база данных drugs_db не найдена: %w", err)
+	}
+
+	// Создаем таблицу users
+	usersTable := `
+	CREATE TABLE IF NOT EXISTS users (
+		userid VARCHAR(100) NOT NULL,
+		firstname VARCHAR(100) DEFAULT NULL,
+		lastname VARCHAR(100) DEFAULT NULL,
+		username VARCHAR(100) DEFAULT NULL,
+		userstatus VARCHAR(100) DEFAULT NULL,
+		first_connect TIMESTAMP NULL DEFAULT CURRENT_TIMESTAMP(),
+		last_connect TIMESTAMP NULL DEFAULT NULL,
+		PRIMARY KEY (userid)
+	)`
+	_, err = db.Exec(usersTable)
+	if err != nil {
+		return fmt.Errorf("ошибка создания таблицы users: %w", err)
+	}
+
+	// Создаем таблицу drugs
+	drugsTable := `
+	CREATE TABLE IF NOT EXISTS drugs (
+		id BIGINT(20) UNSIGNED NOT NULL AUTO_INCREMENT,
+		userid VARCHAR(255) NOT NULL,
+		drug_name VARCHAR(255) NOT NULL,
+		m_dose INT(11) DEFAULT 0,
+		a_dose INT(11) DEFAULT 0,
+		e_dose INT(11) DEFAULT 0,
+		n_dose INT(11) DEFAULT 0,
+		quantity INT(11) DEFAULT 0,
+		comment VARCHAR(100) DEFAULT NULL,
+		PRIMARY KEY (id),
+		FOREIGN KEY (userid) REFERENCES users(userid)
+	)`
+	_, err = db.Exec(drugsTable)
+	if err != nil {
+		return fmt.Errorf("ошибка создания таблицы drugs: %w", err)
+	}
+
+	return nil
+}
+
+func tableExists(db *sqlx.DB, tableName string) bool {
+	var exists bool
+	query := fmt.Sprintf("SELECT COUNT(*) > 0 FROM information_schema.tables WHERE table_schema = DATABASE() AND table_name = '%s'", tableName)
+	err := db.QueryRow(query).Scan(&exists)
+	if err != nil {
+		fmt.Printf("Ошибка проверки существования таблицы %s: %v\n", tableName, err)
+		return false
+	}
+	return exists
+}
+
 func NewMySQLUserDb(cfg *config.Config, lgr *logger.Logger) (*MySQLUserDb, error) {
 	connection := fmt.Sprintf("%s:%s@tcp(%s:%s)/%s",
 		cfg.DBSettings.Username,
@@ -37,6 +112,7 @@ func NewMySQLUserDb(cfg *config.Config, lgr *logger.Logger) (*MySQLUserDb, error
 		lgr.Err.Println(consts.ErrorDBPing, err)
 		return nil, errors.New(consts.ErrorDBPing)
 	}
+
 	lgr.Info.Println(consts.InfoDBConnected)
 	return &MySQLUserDb{db: db}, err
 }
