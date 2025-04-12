@@ -50,7 +50,10 @@ func (h *Handler) HandleText(c telebot.Context) error {
 }
 
 func (h *Handler) UpdateConnect(c telebot.Context) error {
-	h.DB.UpdateLastConnect(c.Sender().ID)
+	err := h.DB.UpdateLastConnect(c.Sender().ID)
+	if err != nil {
+		return err
+	}
 	respString := fmt.Sprintf("Обновление пользователя %d", c.Sender().ID)
 	return c.Send(respString)
 }
@@ -401,8 +404,6 @@ func (h *Handler) HandleDrugDelete(c telebot.Context) error {
 	return h.SendDeleteConfirmation(c, drug.Id, drug.Drug_name)
 }
 
-/////////////////
-
 // Обработчик для нажатия на кнопку "На главную"
 func (h *Handler) handleMain(c telebot.Context) error {
 	return c.Send("Добро пожаловать на главную страницу!")
@@ -469,9 +470,6 @@ func (h *Handler) CancelEditDrug(c telebot.Context) error {
 }
 
 func (h *Handler) handleAddDrug(c telebot.Context) error {
-
-	//fmt.Println(c.Sender().ID)
-	//u.EraseDrug() //Очищаем структуру перед вводом препарата
 	h.UpdateUserStatus(c.Sender().ID, consts.AddDrugName)
 	fmt.Println(h.Bot.User[c.Sender().ID].Username, ": ", h.Bot.User[c.Sender().ID].Status)
 	h.DB.UpdateUserStatus(c.Sender().ID, consts.AddDrugName)
@@ -608,35 +606,22 @@ func (h *Handler) SwitchStatus(c telebot.Context) error {
 	}
 }
 
-/*
-	func (h *Handler) CheckInt(c telebot.Context) (int64, error) {
-		for i := range c.Text() {
-			if !unicode.IsDigit(rune(c.Text()[i])) {
-				return 0, c.Send("Введите число")
-			}
-		}
-		return strconv.ParseInt(c.Text(), 10, 64)
-	}
-*/
 func ParseInt64FromString(input string) (int64, error) {
 	// Проверяем, что строка не пустая
 	if len(input) == 0 {
 		return 0, errors.New("строка пуста")
 	}
-
 	// Проверяем, что каждый символ строки является цифрой
 	for _, r := range input {
 		if !unicode.IsDigit(r) {
 			return 0, errors.New("строка содержит недопустимые символы")
 		}
 	}
-
 	// Преобразуем строку в int64
 	result, err := strconv.ParseInt(input, 10, 64)
 	if err != nil {
 		return 0, fmt.Errorf("ошибка преобразования строки в int64: %w", err)
 	}
-
 	return result, nil
 }
 
@@ -645,7 +630,6 @@ func (h *Handler) DrugApprove(c telebot.Context) error {
 	if !exists {
 		fmt.Println("Пользователь не найден")
 	}
-
 	message := fmt.Sprintf("*Информация о созданном препарате:*\n- Название: %s\n- Доза утром: %d\n- Доза днем: %d\n- Доза вечером: %d\n- Доза ночью: %d\n- Количество: %d\n- Комментарий: %s",
 		user.Drugs.Drug_name, user.Drugs.M_dose, user.Drugs.A_dose, user.Drugs.E_dose, user.Drugs.N_dose, user.Drugs.Quantity, config.EscapeMarkdown(user.Drugs.Comment))
 	inlineKeyboard := telebot.ReplyMarkup{}
@@ -661,17 +645,14 @@ func (h *Handler) DrugApprove(c telebot.Context) error {
 		Text:   "Отмена",
 	}
 	//btnEdit := h.SendEditDrug(c, drugIdInt)
-
 	inlineKeyboard.InlineKeyboard = [][]telebot.InlineButton{
 		{btnApprove, btnCancel},
 	}
-
 	// Отправка сообщения пользователю
 	return c.Send(message, &telebot.SendOptions{
 		ParseMode:   telebot.ModeMarkdown,
 		ReplyMarkup: &inlineKeyboard,
 	})
-
 }
 
 func (h *Handler) EraseDrug(c telebot.Context) error {

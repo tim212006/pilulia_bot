@@ -55,7 +55,7 @@ func (db *MySQLUserDb) UpdateLastConnect(userId int64) error {
 	query := "UPDATE users SET last_connect = ? WHERE userid = ?"
 	_, err := db.db.Exec(query, currentTime, userId)
 	if err != nil {
-		return fmt.Errorf("Ошибка обновления последнего подключения для пользователя %d: %w", userId, err)
+		return fmt.Errorf("ошибка обновления последнего подключения для пользователя %d: %w", userId, err)
 	}
 	return nil
 }
@@ -63,21 +63,19 @@ func (db *MySQLUserDb) UpdateLastConnect(userId int64) error {
 func (db *MySQLUserDb) InsertUser(userID int64, firstName, lastName, userName, status string) error {
 	query := "INSERT INTO users (userid, firstname, lastname, username, userstatus) VALUES (?, ?, ?, ?, ?)"
 	_, err := db.db.Exec(query, userID, firstName, lastName, userName, status)
-	db.UpdateLastConnect(userID)
 	if err != nil {
 		return err
 	}
-	return nil
+	return db.UpdateLastConnect(userID)
 }
 
 func (db *MySQLUserDb) UpdateUserStatus(userID int64, newStatus string) error {
 	query := "UPDATE users SET userstatus = ? WHERE userid = ?"
 	_, err := db.db.Exec(query, newStatus, userID)
-	db.UpdateLastConnect(userID)
 	if err != nil {
 		return err
 	}
-	return nil
+	return db.UpdateLastConnect(userID)
 }
 
 func (db *MySQLUserDb) GetUserStatus(userId int64) (users.Status, error) {
@@ -85,12 +83,12 @@ func (db *MySQLUserDb) GetUserStatus(userId int64) (users.Status, error) {
 	query := "SELECT userstatus FROM users WHERE userid = ?"
 	err := db.db.Get(&userStatus, query, userId)
 	if err != nil {
-		return userStatus, fmt.Errorf("Ошибка получения статуса пользователя")
+		return userStatus, fmt.Errorf("ошибка получения статуса пользователя")
 	}
 	return userStatus, nil
 }
 
-// Функции препаратов
+// GetUserDrugs Функции препаратов
 func (db *MySQLUserDb) GetUserDrugs(userID int64) (map[string]drugs.Drugs, error) {
 	query := `
 		SELECT id, drug_name, m_dose, a_dose, e_dose, n_dose, quantity, comment 
@@ -98,15 +96,19 @@ func (db *MySQLUserDb) GetUserDrugs(userID int64) (map[string]drugs.Drugs, error
 		WHERE userid = ?`
 	rows, err := db.db.Queryx(query, userID)
 	if err != nil {
-		return nil, fmt.Errorf("Ошибка получения препаратов пользователя %d: %w", userID, err)
+		return nil, fmt.Errorf("ошибка получения препаратов пользователя %d: %w", userID, err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil {
+			err = fmt.Errorf("ошибка закрытия строк: %w", closeErr)
+		}
+	}()
 	drugsMap := make(map[string]drugs.Drugs)
 	for rows.Next() {
 		var drug drugs.Drugs
 		err = rows.StructScan(&drug)
 		if err != nil {
-			return nil, fmt.Errorf("Ошибка получения строки препарата %d: %w", userID, err)
+			return nil, fmt.Errorf("ошибка получения строки препарата %d: %w", userID, err)
 		}
 		drugsMap[drug.Drug_name] = drug
 	}
@@ -116,10 +118,9 @@ func (db *MySQLUserDb) GetUserDrugs(userID int64) (map[string]drugs.Drugs, error
 	return drugsMap, nil
 }
 
-// //ХЗ а надо ли оно, если можно получать данные сразу из мапы
 func (db *MySQLUserDb) GetPeriodDrugs(userID int64, period string) (map[string]drugs.Drugs, error) {
-	if period != "m_dose" || period != "a_dose" || period != "e_dose" || period != "n_dose" {
-		return nil, fmt.Errorf("Период: не соответствует")
+	if period != "m_dose" && period != "a_dose" && period != "e_dose" && period != "n_dose" {
+		return nil, fmt.Errorf("период: не соответствует")
 	}
 	query := `
 		SELECT id, drug_name, m_dose, a_dose, e_dose, n_dose, quantity, comment 
@@ -127,15 +128,19 @@ func (db *MySQLUserDb) GetPeriodDrugs(userID int64, period string) (map[string]d
 		WHERE userid = ? AND ? > 0`
 	rows, err := db.db.Queryx(query, userID, period)
 	if err != nil {
-		return nil, fmt.Errorf("Ошибка получения препаратов периода пользователя %d: %w", userID, err)
+		return nil, fmt.Errorf("ошибка получения препаратов периода пользователя %d: %w", userID, err)
 	}
-	defer rows.Close()
+	defer func() {
+		if closeErr := rows.Close(); closeErr != nil {
+			err = fmt.Errorf("ошибка закрытия строк: %w", closeErr)
+		}
+	}()
 	drugsMap := make(map[string]drugs.Drugs)
 	for rows.Next() {
 		var drug drugs.Drugs
 		err = rows.StructScan(&drug)
 		if err != nil {
-			return nil, fmt.Errorf("Ошибка получения строки (период) препарата %d: %w", userID, err)
+			return nil, fmt.Errorf("ошибка получения строки (период) препарата %d: %w", userID, err)
 		}
 		drugsMap[drug.Drug_name] = drug
 	}
@@ -153,7 +158,7 @@ func (db *MySQLUserDb) GetDrug(drugId int64) (drugs.Drugs, error) {
 		WHERE id = ?`
 	err := db.db.Get(&drug, query, drugId)
 	if err != nil {
-		return drugs.Drugs{}, fmt.Errorf("Ошибка получения препарата %d: %w", drugId, err)
+		return drugs.Drugs{}, fmt.Errorf("ошибка получения препарата %d: %w", drugId, err)
 	}
 	return drug, nil
 }
@@ -162,14 +167,14 @@ func (db *MySQLUserDb) DeleteDrug(drugId int64) error {
 	query := "DELETE FROM drugs WHERE id = ?"
 	result, err := db.db.Exec(query, drugId)
 	if err != nil {
-		return fmt.Errorf("Ошибка удаления перпарата с ID %d: %s", drugId, err)
+		return fmt.Errorf("ошибка удаления перпарата с ID %d: %s", drugId, err)
 	}
 	rows, err := result.RowsAffected()
 	if err != nil {
-		return fmt.Errorf("Ошибка получения количества удаленных строк: %w", err)
+		return fmt.Errorf("ошибка получения количества удаленных строк: %w", err)
 	}
 	if rows == 0 {
-		return fmt.Errorf("Препарат с ID %d не найден", drugId)
+		return fmt.Errorf("препарат с ID %d не найден", drugId)
 	}
 	return nil
 }

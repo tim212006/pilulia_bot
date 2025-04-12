@@ -25,14 +25,13 @@ func NewApp() (*App, error) {
 	lgr := logger.InitLogger()
 	bot, err := NewBot(cfg, lgr)
 	if err != nil {
-		errors.New(consts.ErrorBot)
-		return nil, err
+		return nil, errors.New(consts.ErrorBot)
 	}
 	db, dbErr := NewMySQLUserDb(cfg, lgr)
 	if dbErr != nil {
 		return nil, errors.New(consts.ErrorDBConnect)
 	}
-	handler := NewHandler(*bot, lgr, db)
+	handler := NewHandler(bot, lgr, db)
 	app := &App{
 		Bot:     bot,
 		Config:  cfg,
@@ -72,7 +71,7 @@ func (app *App) Start() {
 		callbackData := c.Callback().Data
 		fmt.Println(callbackData[1:6])
 		if len(callbackData) < 6 {
-			return fmt.Errorf("Некорректные данные callback: %s", callbackData)
+			return fmt.Errorf("некорректные данные callback: %s", callbackData)
 		}
 		switch callbackData[1:6] {
 		case "edit_":
@@ -98,7 +97,7 @@ func (app *App) Start() {
 		case "cedit":
 			return app.Handler.handleShowUserDrugs(c)
 		default:
-			return fmt.Errorf("Неизвестный тип callback: %s", callbackData)
+			return fmt.Errorf("неизвестный тип callback: %s", callbackData)
 		}
 		/*fmt.Println(c.Callback().Data)
 
